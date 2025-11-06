@@ -14,13 +14,28 @@ dotenv.config();
 const app = express();
 
 // ✅ CORS setup
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://mini-p-frontend.vercel.app", // ✅ your main stable production URL
+];
+
+// Dynamic CORS handler
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173", // development frontend
-      "https://mini-p-frontend-88wbzw1dc-aditya-bajpayees-projects.vercel.app/",
-      "https://mini-p-frontend.vercel.app/",
-    ],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+
+      // Allow if origin is whitelisted or a Vercel preview subdomain
+      if (
+        allowedOrigins.includes(origin) ||
+        /\.vercel\.app$/.test(new URL(origin).hostname)
+      ) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );

@@ -18,7 +18,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173", // development frontend
-      // "https://mini-p-frontend.vercel.app" // uncomment for production
+      "https://mini-p-frontend-88wbzw1dc-aditya-bajpayees-projects.vercel.app/",
+      "https://mini-p-frontend.vercel.app/",
     ],
     credentials: true,
   })

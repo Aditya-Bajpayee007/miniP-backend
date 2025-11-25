@@ -26,17 +26,27 @@ app.use(
       // Allow requests with no origin (like mobile apps or curl)
       if (!origin) return callback(null, true);
 
-      // Allow if origin is whitelisted or a Vercel preview subdomain
-      if (
-        allowedOrigins.includes(origin) ||
-        /\.vercel\.app$/.test(new URL(origin).hostname)
-      ) {
+      // Allow if origin is whitelisted
+      if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
 
+      // Allow any Vercel preview or production deployment
+      try {
+        const hostname = new URL(origin).hostname;
+        if (hostname.endsWith("vercel.app")) {
+          return callback(null, true);
+        }
+      } catch (e) {
+        console.error("Invalid origin URL:", origin);
+      }
+
+      console.warn("CORS blocked origin:", origin);
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 

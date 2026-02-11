@@ -47,13 +47,12 @@ app.use(
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ❌ Remove global DB connection here
 // connectDB() is now handled per-route in serverless environment
 
 // ✅ Middleware to ensure DB connection before routes

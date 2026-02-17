@@ -1,6 +1,6 @@
-import express from "express";
-import { connectDB } from "./lib/db.js";
 import dotenv from "dotenv";
+dotenv.config();
+import express from "express";
 import cors from "cors";
 
 import imageRoute from "./routes/image.js";
@@ -8,6 +8,7 @@ import youtubeRoute from "./routes/youtube.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import slideRoutes from "./routes/slideRoutes.js";
+import videoRoutes from "./routes/videoRoutes.js";
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ app.use(express.urlencoded({ extended: true }));
 // ✅ Middleware to ensure DB connection before routes
 app.use(async (req, res, next) => {
   try {
+    const { connectDB } = await import("./lib/db.js");
     await connectDB(); // Wait for connection before handling any request
     next();
   } catch (err) {
@@ -72,6 +74,7 @@ app.use("/api/youtube", youtubeRoute);
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/slides", slideRoutes);
+app.use("/api/video", videoRoutes);
 
 // ✅ Root route
 app.get("/", (req, res) => {

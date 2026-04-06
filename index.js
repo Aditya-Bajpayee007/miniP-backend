@@ -9,6 +9,8 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import slideRoutes from "./routes/slideRoutes.js";
 import videoRoutes from "./routes/videoRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
+// import videoRoutes from "./routes/videoRoutes.js";
 
 dotenv.config();
 

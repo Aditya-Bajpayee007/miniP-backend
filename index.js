@@ -76,6 +76,7 @@ app.use("/api/youtube", youtubeRoute);
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/slides", slideRoutes);
+app.use("/api/upload", uploadRoutes);
 app.use("/api/video", videoRoutes);
 
 // ✅ Root route

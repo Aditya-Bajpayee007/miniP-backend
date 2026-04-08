@@ -9,6 +9,8 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import slideRoutes from "./routes/slideRoutes.js";
 import videoRoutes from "./routes/videoRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
+// import videoRoutes from "./routes/videoRoutes.js";
 
 dotenv.config();
 
@@ -74,6 +76,7 @@ app.use("/api/youtube", youtubeRoute);
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/slides", slideRoutes);
+app.use("/api/upload", uploadRoutes);
 app.use("/api/video", videoRoutes);
 
 // ✅ Root route

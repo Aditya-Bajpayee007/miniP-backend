@@ -192,139 +192,48 @@ function probeDuration(filePath) {
   });
 }
 
-async function downloadImage(url, outPath) {
+async function downloadAndNormalizeImage(url, outPath) {
   const resp = await axios.get(url, { responseType: "arraybuffer" });
-  await fs.promises.writeFile(outPath, resp.data);
+
+  // Always convert to JPEG using sharp
+  await sharp(resp.data)
+    .resize(1920, 1080, { fit: "cover" })
+    .sharpen()
+    .jpeg({ quality: 90 })
+    .toFile(outPath);
+
   return outPath;
 }
 
 async function makeSegment(
   imagePath,
   audioPath,
-  text,
   duration,
-  outSegmentPath,
+  outSegmentPath
 ) {
   return new Promise((resolve, reject) => {
-    try {
-      const fontPath = "/Library/Fonts/Arial.ttf"; // macOS fallback
+    const args = [
+      "-y",
+      "-loop", "1",
+      "-i", imagePath,
+      "-i", audioPath,
+      "-vf", "scale=1920:1080:flags=lanczos",
+      "-c:v", "libx264",
+      "-t", String(duration),
+      "-pix_fmt", "yuv420p",
+      "-c:a", "aac",
+      "-b:a", "192k",
+      outSegmentPath,
+    ];
 
-      const sanitize = (s) =>
-        (s || "")
-          .replace(/<[^>]*>/g, "")
-          .replace(/\\/g, "\\\\")
-          .replace(/'/g, "\\'")
-          .replace(/:/g, "\\:")
-          .replace(/%/g, "\\%")
-          .replace(/\r?\n/g, "\n");
-
-      const escapeXml = (unsafe) =>
-        (unsafe || "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&apos;");
-
-      // word-wrap helper
-      const wrapText = (str, maxChars = 42) => {
-        if (!str) return [""];
-        const words = str.split(/\s+/);
-        const lines = [];
-        let cur = "";
-        for (const w of words) {
-          if ((cur + " " + w).trim().length <= maxChars) {
-            cur = (cur + " " + w).trim();
-          } else {
-            if (cur) lines.push(cur);
-            if (w.length > maxChars) {
-              for (let i = 0; i < w.length; i += maxChars) {
-                lines.push(w.slice(i, i + maxChars));
-              }
-              cur = "";
-            } else {
-              cur = w;
-            }
-          }
-        }
-        if (cur) lines.push(cur);
-        return lines;
-      };
-
-      // build lines preserving explicit newlines
-      const raw = sanitize(text || "");
-      const paragraphs = raw.split("\n").filter((p) => p !== "");
-      let lines = [];
-      for (const p of paragraphs) lines = lines.concat(wrapText(p, 42));
-      if (lines.length === 0) lines = [""];
-
-      const svgW = 1280;
-      const svgH = 720;
-      let fontSize = 48;
-      if (lines.length > 6) fontSize = 28;
-      else if (lines.length > 4) fontSize = 36;
-      const lineHeight = Math.round(fontSize * 1.15);
-      const bottomPadding = 48;
-      // top Y so block fits above bottomPadding
-      let startY = svgH - bottomPadding - lines.length * lineHeight;
-      if (startY < 8) startY = 8;
-
-      const tspans = lines
-        .map((ln, idx) => {
-          const dy = idx === 0 ? "0" : `${lineHeight}`;
-          return `<tspan x='50%' dy='${dy}'>${escapeXml(ln)}</tspan>`;
-        })
-        .join("");
-
-      const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns='http://www.w3.org/2000/svg' width='${svgW}' height='${svgH}'>\n  <style>\n    .t { fill: white; font-size:${fontSize}px; font-family: Arial, Helvetica, sans-serif; }</style>\n  <rect width='100%' height='100%' fill='transparent'/>\n  <text x='50%' y='${startY}' text-anchor='middle' dominant-baseline='text-before-edge' class='t'>${tspans}</text>\n</svg>`;
-
-      const overlayPath = outSegmentPath.replace(/\.mp4$/, "-overlay.png");
-
-      sharp(Buffer.from(svg))
-        .png()
-        .toFile(overlayPath)
-        .then(() => {
-          const args = [
-            "-y",
-            "-loop",
-            "1",
-            "-i",
-            imagePath,
-            "-i",
-            overlayPath,
-            "-i",
-            audioPath,
-            "-filter_complex",
-            "[0:v]scale=1280:720[bg];[1:v]scale=1280:720[ov];[bg][ov]overlay=0:0",
-            "-c:v",
-            "libx264",
-            "-t",
-            String(duration),
-            "-pix_fmt",
-            "yuv420p",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "192k",
-            outSegmentPath,
-          ];
-
-          execFile(ffmpegPath, args, (err, stdout, stderr) => {
-            // cleanup overlay
-            fs.promises.unlink(overlayPath).catch(() => {});
-            if (err)
-              return reject(
-                new Error(
-                  `ffmpeg exited with code ${err.code}: ${stderr || stdout}`,
-                ),
-              );
-            resolve(outSegmentPath);
-          });
-        })
-        .catch((err) => reject(err));
-    } catch (e) {
-      reject(e);
-    }
+    execFile(ffmpegPath, args, (err, stdout, stderr) => {
+      if (err) {
+        return reject(
+          new Error(`ffmpeg failed: ${stderr || stdout}`)
+        );
+      }
+      resolve(outSegmentPath);
+    });
   });
 }
 
@@ -344,10 +253,81 @@ export const generateVideo = async (req, res) => {
     for (let i = 0; i < slide.slidesData.length; i++) {
       const s = slide.slidesData[i];
       const imagePath = path.join(tmpDir, `image-${i}.jpg`);
-      if (s.imageUrl) {
-        await downloadImage(s.imageUrl, imagePath);
+
+      // Determine image to use: current slide image or nearest neighbor with an image
+      let imageUrlToUse = s.imageUrl || null;
+      let sourceIndex = i;
+      if (!imageUrlToUse) {
+        // prefer previous slides
+        for (let j = i - 1; j >= 0; j--) {
+          if (slide.slidesData[j] && slide.slidesData[j].imageUrl) {
+            imageUrlToUse = slide.slidesData[j].imageUrl;
+            sourceIndex = j;
+            break;
+          }
+        }
+      }
+      if (!imageUrlToUse) {
+        // then try next slides
+        for (let j = i + 1; j < slide.slidesData.length; j++) {
+          if (slide.slidesData[j] && slide.slidesData[j].imageUrl) {
+            imageUrlToUse = slide.slidesData[j].imageUrl;
+            sourceIndex = j;
+            break;
+          }
+        }
+      }
+
+      if (imageUrlToUse) {
+        try {
+          if (sourceIndex < i) {
+            // reuse previously created/downloaded image if available
+            const srcPath = path.join(tmpDir, `image-${sourceIndex}.jpg`);
+            const srcExists = await fs.promises
+              .access(srcPath)
+              .then(() => true)
+              .catch(() => false);
+            if (srcExists) {
+              await fs.promises.copyFile(srcPath, imagePath);
+            } else {
+              await downloadAndNormalizeImage(imageUrlToUse, imagePath);
+            }
+          } else {
+            // either this slide has an image or we're using a next slide's image
+            await downloadAndNormalizeImage(imageUrlToUse, imagePath);
+          }
+
+          // verify the downloaded/generated file is a readable image; if not, fallback to plain background
+          try {
+            await sharp(imagePath).metadata();
+          } catch (err) {
+            await fs.promises.unlink(imagePath).catch(() => {});
+            await sharp({
+              create: {
+                width: 1280,
+                height: 720,
+                channels: 3,
+                background: { r: 0, g: 0, b: 0 },
+              },
+            })
+              .jpeg()
+              .toFile(imagePath);
+          }
+        } catch (err) {
+          // any download/validation error -> fallback to plain background
+          await sharp({
+            create: {
+              width: 1280,
+              height: 720,
+              channels: 3,
+              background: { r: 0, g: 0, b: 0 },
+            },
+          })
+            .jpeg()
+            .toFile(imagePath);
+        }
       } else {
-        // create a plain background if no image (1280x720 black)
+        // no image anywhere nearby, create a plain background (1280x720 black)
         await sharp({
           create: {
             width: 1280,
@@ -372,9 +352,8 @@ export const generateVideo = async (req, res) => {
       await makeSegment(
         imagePath,
         audioPath,
-        summary || s.textContent || "",
         duration,
-        segPath,
+        segPath
       );
 
       segments.push(segPath);

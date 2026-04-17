@@ -127,7 +127,10 @@ async function ttsGoogle(text, outPath) {
 }
 
 async function ttsElevenLabs(text, outPath) {
-  if (!ELEVEN_KEY) throw new Error("Missing ELEVENLABS_API_KEY env var");
+  if (!ELEVEN_KEY) {
+    console.log("No ElevenLabs key, using Google TTS...");
+    return await ttsGoogle(text, outPath);
+  }
 
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}`;
 

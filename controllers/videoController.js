@@ -148,7 +148,7 @@ async function ttsElevenLabs(text, outPath) {
     return outPath;
   } catch (err) {
     const status = err?.response?.status;
-    if (status === 401) {
+    if (status === 401 || status === 403 || status===402) {
       // Try Google TTS fallback
       try {
         return await ttsGoogle(text, outPath);

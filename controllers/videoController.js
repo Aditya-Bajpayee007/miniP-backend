@@ -347,7 +347,8 @@ export const generateVideo = async (req, res) => {
       const summary = await summarizeSlide(s.textContent || "");
 
       const audioPath = path.join(tmpDir, `audio-${i}.mp3`);
-      await ttsElevenLabs(summary, audioPath);
+      const cleanSummary = summary.replace(/<[^>]*>/g, "");
+      await ttsElevenLabs(cleanSummary, audioPath);
 
       const duration = await probeDuration(audioPath);
 

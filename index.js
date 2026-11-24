@@ -22,6 +22,24 @@ const allowedOrigins = [
   "https://mini-p-frontend.vercel.app", // ✅ your main stable production URL
 ];
 
+// Handle preflight OPTIONS requests explicitly (must come before other middleware)
+app.options("*", cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    try {
+      const hostname = new URL(origin).hostname;
+      if (hostname.endsWith("vercel.app")) return callback(null, true);
+    } catch (e) {
+      console.error("Invalid origin URL:", origin);
+    }
+    return callback(null, true); // allow all for preflight
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
 // Dynamic CORS handler
 app.use(
   cors({

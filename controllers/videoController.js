@@ -44,7 +44,7 @@ ${text}`;
         process.env.GROQ_ENDPOINT ||
         "https://api.groq.com/openai/v1/chat/completions";
       const body = {
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.2,
         max_tokens: 128,

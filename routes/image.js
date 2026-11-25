@@ -65,16 +65,20 @@ router.get("/search", async (req, res) => {
 
   if (!q) return res.status(400).json({ error: "Missing query" });
 
+  // Keep Google Images search query concise to avoid overly long URLs / SerpAPI drops
+  const searchQuery = String(q).replace(/\s+/g, " ").trim().slice(0, 150);
+
   try {
     const response = await axios.get("https://serpapi.com/search.json", {
       params: {
         engine: "google_images",
-        q,
+        q: searchQuery,
         api_key: process.env.SERPAPI_API_KEY,
         hl: "en",
         gl: "us",
         ijn: 0,
       },
+      timeout: 15000,
     });
 
     // Log top-level keys to help debugging different SERPAPI shapes

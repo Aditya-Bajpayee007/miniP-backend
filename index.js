@@ -68,7 +68,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // connectDB() is now handled per-route in serverless environment
 
-// ✅ Middleware to ensure DB connection before routes (skips OPTIONS — already handled above)
+// ✅ Stateless routes (do not require MongoDB connection)
+app.use("/api/image", imageRoute);
+app.use("/api/youtube", youtubeRoute);
+
+// ✅ Middleware to ensure DB connection before DB-backed routes (skips OPTIONS — already handled above)
 app.use(async (req, res, next) => {
   try {
     const { connectDB } = await import("./lib/db.js");
@@ -80,9 +84,7 @@ app.use(async (req, res, next) => {
   }
 });
 
-// ✅ Routes
-app.use("/api/image", imageRoute);
-app.use("/api/youtube", youtubeRoute);
+// ✅ DB-backed routes
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/slides", slideRoutes);

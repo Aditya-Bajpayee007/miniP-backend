@@ -25,13 +25,13 @@ router.post("/generate", async (req, res) => {
 
     const response = await axios.post(
       url,
-      { prompt, steps: 4 },
+      { prompt, steps: 2 },
       {
         headers: {
           Authorization: `Bearer ${apiToken}`,
           "Content-Type": "application/json",
         },
-        timeout: 30000,
+        timeout: 55000,
       }
     );
 

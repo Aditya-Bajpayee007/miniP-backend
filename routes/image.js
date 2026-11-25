@@ -25,7 +25,7 @@ router.post("/generate", async (req, res) => {
 
     const response = await axios.post(
       url,
-      { prompt, steps: 2 },
+      { prompt, steps: 4 },
       {
         headers: {
           Authorization: `Bearer ${apiToken}`,

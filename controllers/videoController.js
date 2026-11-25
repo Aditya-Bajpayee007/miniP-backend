@@ -47,7 +47,8 @@ ${text}`;
         model: "openai/gpt-oss-120b",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.2,
-        max_tokens: 128,
+        max_completion_tokens: 256,
+        top_p: 1,
       };
 
       const resp = await axios.post(url, body, {

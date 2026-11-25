@@ -3,6 +3,63 @@ import axios from "axios";
 
 const router = express.Router();
 
+// @desc    Generate AI image using Cloudflare Workers AI (Flux model)
+// @route   POST /api/image/generate
+router.post("/generate", async (req, res) => {
+  try {
+    const { prompt } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ error: "Missing prompt" });
+    }
+
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+
+    if (!accountId || !apiToken) {
+      return res.status(500).json({ error: "Cloudflare credentials not configured" });
+    }
+
+    const model = "@cf/black-forest-labs/flux-1-schnell";
+    const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
+
+    const response = await axios.post(
+      url,
+      { prompt, steps: 4 },
+      {
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 30000,
+      }
+    );
+
+    const data = response.data;
+
+    if (!data.success || !data.result?.image) {
+      console.error("Cloudflare AI error:", data.errors);
+      return res.status(500).json({
+        error: "Image generation failed",
+        details: data.errors,
+      });
+    }
+
+    // Return the base64 image as a data URL
+    return res.json({
+      image: `data:image/png;base64,${data.result.image}`,
+      success: true,
+      method: "cloudflare-ai",
+    });
+  } catch (err) {
+    console.error("Cloudflare AI image generation error:", err?.message || err);
+    return res.status(500).json({
+      error: "Image generation failed",
+      details: err?.message,
+    });
+  }
+});
+
 router.get("/search", async (req, res) => {
   const { q } = req.query;
 
